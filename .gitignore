@@ -89,3 +89,9 @@ CLAUDE.md
 
 # Build cache
 .cache/  # Includes conda_unpack_wheels/ for Windows packaging workaround
+
+# Worktrees
+.worktrees/
+
+# Devkit (local only, not pushed to remote)
+devkit/
