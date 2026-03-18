@@ -334,6 +334,13 @@ class MemoryManager(ReMeLight):
         Returns:
             The in-memory memory content with token counting support
         """
-        return super().get_in_memory_memory(
-            as_token_counter=self.token_counter,
-        )
+        # Try both parameter names for compatibility with different reme
+        try:
+            return super().get_in_memory_memory(
+                as_token_counter=self.token_counter,
+            )
+        except TypeError:
+            # Fall back to old parameter name (reme < 0.3.0.8)
+            return super().get_in_memory_memory(
+                token_counter=self.token_counter,
+            )
