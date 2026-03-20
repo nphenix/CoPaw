@@ -62,7 +62,28 @@ class CronManager:
 
             self._scheduler.start()
             for job in jobs_file.jobs:
-                await self._register_or_update(job)
+                try:
+                    await self._register_or_update(job)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning(
+                        "Skipping invalid cron job during startup: "
+                        "job_id=%s name=%s cron=%s error=%s",
+                        job.id,
+                        job.name,
+                        job.schedule.cron,
+                        repr(e),
+                    )
+                    if job.enabled:
+                        disabled_job = job.model_copy(
+                            update={"enabled": False},
+                        )
+                        await self._repo.upsert_job(disabled_job)
+                        logger.warning(
+                            "Auto-disabled invalid cron job: "
+                            "job_id=%s name=%s",
+                            job.id,
+                            job.name,
+                        )
 
             # Heartbeat: one interval job when enabled in config
             hb = get_heartbeat_config(self._agent_id)
@@ -213,12 +234,14 @@ class CronManager:
     # ----- internal -----
 
     async def _register_or_update(self, spec: CronJobSpec) -> None:
+        # Validate and build trigger first. If cron is invalid, fail fast
+        # without mutating scheduler/runtime state.
+        trigger = self._build_trigger(spec)
+
         # per-job concurrency semaphore
         self._rt[spec.id] = _Runtime(
             sem=asyncio.Semaphore(spec.runtime.max_concurrency),
         )
-
-        trigger = self._build_trigger(spec)
 
         # replace existing
         if self._scheduler.get_job(spec.id):
@@ -288,6 +311,9 @@ class CronManager:
                 agent_id=self._agent_id,
                 workspace_dir=workspace_dir,
             )
+        except asyncio.CancelledError:
+            logger.info("heartbeat cancelled")
+            raise
         except Exception:  # pylint: disable=broad-except
             logger.exception("heartbeat run failed")
 
@@ -310,6 +336,14 @@ class CronManager:
                     "cron _execute_once: job_id=%s status=success",
                     job.id,
                 )
+            except asyncio.CancelledError:
+                st.last_status = "cancelled"
+                st.last_error = "Job was cancelled"
+                logger.info(
+                    "cron _execute_once: job_id=%s status=cancelled",
+                    job.id,
+                )
+                raise
             except Exception as e:  # pylint: disable=broad-except
                 st.last_status = "error"
                 st.last_error = repr(e)

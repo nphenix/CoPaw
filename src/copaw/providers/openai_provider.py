@@ -19,14 +19,11 @@ class OpenAIProvider(Provider):
     """Provider implementation for OpenAI API and compatible endpoints."""
 
     def _client(self, timeout: float = 5) -> AsyncOpenAI:
-        client_kwargs = {
-            "base_url": self.base_url,
-            "api_key": self.api_key,
-            "timeout": timeout,
-        }
-        if self.default_headers:
-            client_kwargs["default_headers"] = self.default_headers
-        return AsyncOpenAI(**client_kwargs)
+        return AsyncOpenAI(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            timeout=timeout,
+        )
 
     @staticmethod
     def _normalize_models_payload(payload: Any) -> List[ModelInfo]:
@@ -92,7 +89,17 @@ class OpenAIProvider(Provider):
             client = self._client(timeout=timeout)
             res = await client.chat.completions.create(
                 model=model_id,
-                messages=[{"role": "user", "content": "ping"}],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "ping",
+                            },
+                        ],
+                    },
+                ],
                 timeout=timeout,
                 max_tokens=1,
                 stream=True,
@@ -112,31 +119,32 @@ class OpenAIProvider(Provider):
     def get_chat_model_instance(self, model_id: str) -> ChatModelBase:
         from .openai_chat_model_compat import OpenAIChatModelCompat
 
-        dashscope_base_urls = [
-            DASHSCOPE_BASE_URL,
-            CODING_DASHSCOPE_BASE_URL,
-        ]
-
         client_kwargs = {"base_url": self.base_url}
-        headers = {}
 
-        if self.base_url in dashscope_base_urls:
-            headers["x-dashscope-agentapp"] = json.dumps(
-                {
-                    "agentType": "CoPaw",
-                    "deployType": "UnKnown",
-                    "moduleCode": "model",
-                    "agentCode": "UnKnown",
-                },
-                ensure_ascii=False,
-            )
-
-        # Merge custom default_headers
-        if self.default_headers:
-            headers.update(self.default_headers)
-
-        if headers:
-            client_kwargs["default_headers"] = headers
+        if self.base_url == DASHSCOPE_BASE_URL:
+            client_kwargs["default_headers"] = {
+                "x-dashscope-agentapp": json.dumps(
+                    {
+                        "agentType": "CoPaw",
+                        "deployType": "UnKnown",
+                        "moduleCode": "model",
+                        "agentCode": "UnKnown",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+        elif self.base_url == CODING_DASHSCOPE_BASE_URL:
+            client_kwargs["default_headers"] = {
+                "X-DashScope-Cdpl": json.dumps(
+                    {
+                        "agentType": "CoPaw",
+                        "deployType": "UnKnown",
+                        "moduleCode": "model",
+                        "agentCode": "UnKnown",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
 
         return OpenAIChatModelCompat(
             model_name=model_id,

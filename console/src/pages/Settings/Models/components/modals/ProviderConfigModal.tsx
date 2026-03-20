@@ -264,6 +264,7 @@ interface ProviderConfigModalProps {
     is_custom: boolean;
     freeze_url: boolean;
     chat_model: string;
+    support_connection_check: boolean;
     generate_kwargs: Record<string, unknown>;
     default_headers?: Record<string, string>;
   };
@@ -469,7 +470,7 @@ export function ProviderConfigModal({
 
       // Validate connection before saving
       // For local providers, we might skip this or just check if models exist (which the backend does)
-      if (!provider.is_custom) {
+      if (provider.support_connection_check) {
         const result = await api.testProviderConnection(provider.id, {
           api_key: values.api_key,
           base_url: values.base_url,
@@ -590,7 +591,7 @@ export function ProviderConfigModal({
                 {t("models.revokeAuthorization")}
               </Button>
             )}
-            {!provider.is_custom && (
+            {provider.support_connection_check && (
               <Button
                 size="small"
                 icon={<ApiOutlined />}
