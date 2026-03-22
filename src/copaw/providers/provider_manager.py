@@ -122,6 +122,10 @@ DEEPSEEK_MODELS: List[ModelInfo] = [
 
 ANTHROPIC_MODELS: List[ModelInfo] = []
 
+STREAMLAKE_MODELS: List[ModelInfo] = [
+    ModelInfo(id="kat-coder-pro-v1", name="KAT-Coder-Pro V1"),
+]
+
 GEMINI_MODELS: List[ModelInfo] = [
     ModelInfo(id="gemini-3.1-pro-preview", name="Gemini 3.1 Pro Preview"),
     ModelInfo(id="gemini-3-flash-preview", name="Gemini 3 Flash Preview"),
@@ -280,6 +284,28 @@ PROVIDER_LMSTUDIO = OpenAIProvider(
     generate_kwargs={"max_tokens": None},
 )
 
+PROVIDER_STREAMLAKE_CODING = OpenAIProvider(
+    id="streamlake-coding",
+    name="StreamLake Coding Plan",
+    base_url="https://wanqing.streamlakeapi.com/api/gateway/coding/v1",
+    api_key_prefix="",
+    models=STREAMLAKE_MODELS,
+    # This provider doesn't support connection check without model config
+    support_connection_check=False,
+    freeze_url=True,
+)
+
+PROVIDER_STREAMLAKE_PAYG = OpenAIProvider(
+    id="streamlake-payg",
+    name="StreamLake (Pay-as-you-go)",
+    base_url="https://wanqing.streamlakeapi.com/api/gateway/v1/endpoints",
+    api_key_prefix="",
+    models=STREAMLAKE_MODELS,
+    # This provider doesn't support connection check without model config
+    support_connection_check=False,
+    freeze_url=True,
+)
+
 
 class ActiveModelsInfo(BaseModel):
     active_llm: ModelSlotConfig | None
@@ -331,6 +357,8 @@ class ProviderManager:
         self._add_builtin(PROVIDER_GEMINI)
         self._add_builtin(PROVIDER_MINIMAX_CN)
         self._add_builtin(PROVIDER_MINIMAX)
+        self._add_builtin(PROVIDER_STREAMLAKE_CODING)
+        self._add_builtin(PROVIDER_STREAMLAKE_PAYG)
         self._add_builtin(PROVIDER_OLLAMA)
         self._add_builtin(PROVIDER_LMSTUDIO)
         self._add_builtin(PROVIDER_LLAMACPP)
